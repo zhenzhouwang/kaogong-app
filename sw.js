@@ -3,7 +3,7 @@
 //   - 有网：永远拿服务器最新版本（保证每次迭代用户立刻看到更新）
 //   - 断网：回退到缓存（保证添加到主屏幕后离线也能打开）
 
-const CACHE = "kaogong-v2";
+const CACHE = "kaogong-v3";
 const ASSETS = ["./", "./index.html"];
 
 self.addEventListener("install", e => {
