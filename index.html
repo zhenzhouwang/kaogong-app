@@ -29,14 +29,13 @@ html{width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%;}
 body{
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
   background:var(--bg);color:var(--text);min-height:100vh;
-  width:100%;overflow-x:hidden;
+  width:100%;overflow-x:clip;
   -webkit-overflow-scrolling:touch;
 }
 /* iPhone frame */
 .app-frame{
   width:100%;max-width:430px;margin:0 auto;min-height:100vh;
   background:var(--bg);position:relative;
-  overflow-x:hidden;
 }
 
 /* ===== Header ===== */
@@ -53,10 +52,14 @@ body{
   font-size:11px;
 }
 
-/* ===== Tab Bar ===== */
+/* ===== Tab Bar（固定底部导航，始终可见） ===== */
 .tab-bar{
-  display:flex;background:var(--card);border-bottom:1px solid #f0f0f0;
-  position:sticky;top:calc(56px + var(--safe-top));z-index:99;
+  display:flex;background:var(--card);
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:0;width:100%;max-width:430px;
+  padding-bottom:var(--safe-bottom);
+  border-top:1px solid #f0f0f0;
+  z-index:120;
 }
 .tab-btn{
   flex:1;padding:12px 0;text-align:center;font-size:13px;
@@ -65,8 +68,8 @@ body{
 }
 .tab-btn.active{color:var(--pink);font-weight:600;}
 .tab-btn.active::after{
-  content:'';position:absolute;bottom:0;left:30%;right:30%;
-  height:3px;background:var(--pink);border-radius:3px 3px 0 0;
+  content:'';position:absolute;top:0;left:30%;right:30%;
+  height:3px;background:var(--pink);border-radius:0 0 3px 3px;
 }
 
 /* ===== Pages ===== */
@@ -392,19 +395,21 @@ body{
 }
 .todo-delete:hover{color:var(--red);background:#FFF0F0;}
 
-.add-todo-form{display:flex;gap:6px;margin-top:12px;}
+.add-todo-form{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;}
 .add-todo-input{
-  flex:1;padding:10px 12px;border:2px solid #f0f0f0;border-radius:var(--radius-sm);
+  flex:1 1 130px;padding:10px 12px;border:2px solid #f0f0f0;border-radius:var(--radius-sm);
   font-size:13px;outline:none;transition:border-color .2s;min-width:0;
 }
 .add-todo-input:focus{border-color:var(--pink);}
 .todo-type-select{
+  flex:0 1 auto;max-width:42%;
   padding:10px 8px;border:2px solid #f0f0f0;border-radius:var(--radius-sm);
   font-size:12px;outline:none;cursor:pointer;background:#fff;
-  font-family:inherit;min-width:90px;
+  font-family:inherit;min-width:84px;
 }
 .todo-type-select:focus{border-color:var(--pink);}
 .add-todo-btn{
+  flex:0 0 auto;
   padding:10px 14px;background:var(--pink);color:#fff;border:none;
   border-radius:var(--radius-sm);font-size:16px;cursor:pointer;
   transition:transform .2s;white-space:nowrap;font-weight:700;
@@ -1913,23 +1918,21 @@ function getTodayTodos(){
     }));
     saveState(state);
   }
-  // Ensure we always have exactly DAILY_SLOTS daily slots
   const todos = state.todos[today];
-  const dailySlots = todos.filter(t=>t.type==='daily');
-  // Trim excess slots (migrating from 5→3)
-  if(dailySlots.length > DAILY_SLOTS){
-    state.todos[today] = todos.filter(t => {
-      if(t.type !== 'daily') return true;
-      return dailySlots.indexOf(t) < DAILY_SLOTS;
-    });
-    saveState(state);
-    return getTodayTodos(); // re-fetch after trim
-  }
+  const dailySlots = todos.filter(t => t.type === 'daily');
+  // 至少有 DAILY_SLOTS 个每日槽位（仅补充空槽，绝不丢弃有内容的任务）
   if(dailySlots.length < DAILY_SLOTS){
     for(let i=dailySlots.length; i<DAILY_SLOTS; i++){
-      todos.push({id:'slot_'+i, text:'', type:'daily', done:false});
+      todos.push({id:'slot_'+Date.now()+'_'+i, text:'', type:'daily', done:false});
     }
     saveState(state);
+  } else if(dailySlots.length > DAILY_SLOTS){
+    // 仅清理多余的「空槽」，保留用户真实填写/新增的任务
+    let excess = dailySlots.length - DAILY_SLOTS;
+    for(let i=todos.length-1; i>=0 && excess>0; i--){
+      if(todos[i].type==='daily' && !todos[i].text.trim()){ todos.splice(i,1); excess--; }
+    }
+    if(excess===0) saveState(state);
   }
   return state.todos[today];
 }
